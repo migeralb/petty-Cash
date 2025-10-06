@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>meetup Petty Cash Entry</title>
+    <style>
+        /* Define the Brand Colors */
+        :root {
+            --meetup-green: #1E8449; /* Deep Green from the logo */
+            --white: #ffffff;
+            --text-dark: #333;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            color: var(--text-dark);
+            /* NEW: Unified background image for the entire page */
+            background-image: url('background 2.jpeg'); 
+            background-size: cover;
+            background-attachment: fixed;
+            background-color: #D3EADD; 
+            min-height: 100vh; /* Ensure background covers full height */
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 15px;
+        }
+        
+        /* Branded Header Redesign */
+        header {
+            /* Removed the separate green banner and integrated the look */
+            text-align: center;
+            padding: 40px 0 20px 0; /* Extra vertical padding for space */
+            margin-bottom: 20px;
+        }
+        .logo-image-container {
+            /* NEW: Use the logo as the central header image */
+            display: inline-block;
+            padding: 15px; /* Padding inside the logo container */
+            border-radius: 10px;
+            background-color: transparent; /* No background color needed, just the image */
+        }
+        .logo-image {
+            width: 150px; 
+            height: auto;
+            display: block;
+        }
+        
+        /* Form and Sequential Step Styles */
+        .step {
+            /* Content is inside a white box for readability over the background */
+            background-color: var(--white);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2); /* Enhanced shadow */
+            margin-bottom: 20px;
+            display: none; 
+        }
+        .step.active {
+            display: block;
+        }
+        h2 { 
+            border-bottom: 2px solid var(--meetup-green); 
+            padding-bottom: 5px; 
+            margin-top: 5px;
+            color: var(--meetup-green); 
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: 600;
+        }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .button-group {
+            margin-top: 25px;
+            display: flex;
+            gap: 10px;
+        }
+        .next-btn, .back-btn, #submit-btn {
+            padding: 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 16px;
+            flex-grow: 1;
+        }
+        .next-btn, #submit-btn {
+            background-color: var(--meetup-green); 
+            color: white;
+        }
+        .back-btn {
+            background-color: #ddd;
+            color: #333;
+            flex-grow: 0.5;
+        }
+
+        /* Status and Alerts (rest of CSS remains the same) */
+        #statusMessage {
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+        }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .loading { background-color: #fff3cd; color: #856404; }
+    </style>
+
+    <script>
+        // !!! IMPORTANT: REPLACE THIS PLACEHOLDER WITH YOUR DEPLOYED GOOGLE APPS SCRIPT URL !!!
+        const GAS_URL = 'Yhttps://script.google.com/macros/s/AKfycbxrEDQaWqLHQwlQRQ2bo3UsakK9JzZM05KtuAcBk5iQ3WTgZTem9iQTGGgy-QsBjRQmPQ/exec'; 
+        const REF_STORAGE_KEY = 'meetupLastRefNumber';
+        const START_REF_NUMBER = 100;
+
+        let currentStep = 1;
+        const totalSteps = 4;
+
+        function showStep(stepNumber) {
+            document.querySelectorAll('.step').forEach(step => {
+                step.classList.remove('active');
+            });
+            document.getElementById(`step-${stepNumber}`).classList.add('active');
+            currentStep = stepNumber;
+        }
+
+        function getNextRefNumber() {
+            let lastRef = localStorage.getItem(REF_STORAGE_KEY);
+            let nextRef = lastRef ? parseInt(lastRef) + 1 : START_REF_NUMBER;
+            return nextRef.toString();
+        }
+
+        function saveNextRefNumber(currentRef) {
+            localStorage.setItem(REF_STORAGE_KEY, currentRef);
+        }
+        
+        function updateRefField() {
+            document.getElementById('ref').value = getNextRefNumber();
+        }
+
+        function updateSupplierField() {
+            const expenseType = document.getElementById('expenseType').value;
+            const supplierContainer = document.getElementById('supplierContainer');
+            const descriptionLabel = document.getElementById('descriptionLabel');
+            const descriptionInput = document.getElementById('description');
+
+            supplierContainer.innerHTML = '';
+            
+            if (expenseType === 'SALES') {
+                descriptionLabel.style.display = 'none';
+                descriptionInput.style.display = 'none';
+                supplierContainer.innerHTML = `
+                    <select id="supplier" name="supplier" required>
+                        <option value="">-- Choose Sales Source --</option>
+                        <option value="Cashier">Cashier</option>
+                        <option value="Toters">Toters</option>
+                        <option value="Gozilla">Gozilla</option>
+                    </select>
+                `;
+            } else if (expenseType === 'EXPENSES') {
+                descriptionLabel.style.display = 'block';
+                descriptionInput.style.display = 'block';
+                supplierContainer.innerHTML = `
+                    <input type="text" id="supplier" name="supplier" required placeholder="Enter Supplier Name">
+                `;
+            } else {
+                descriptionLabel.style.display = 'block';
+                descriptionInput.style.display = 'block';
+                supplierContainer.innerHTML = `
+                    <input type="text" id="supplier" name="supplier" required placeholder="Select Type First">
+                `;
+            }
+        }
+
+        function nextStep() {
+            if (currentStep < totalSteps) {
+                if (!validateStep(currentStep)) return;
+                showStep(currentStep + 1);
+                window.scrollTo(0, 0); 
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                showStep(currentStep - 1);
+                window.scrollTo(0, 0);
+            }
+        }
+
+        function validateStep(step) {
+            const form = document.getElementById('cashForm');
+            switch(step) {
+                case 1:
+                    if (!form.branch.value) {
+                        alert("Please select a branch to continue.");
+                        return false;
+                    }
+                    return true;
+                case 2:
+                    const expenseType = form.expenseType.value;
+                    const supplierField = document.getElementById('supplier');
+                    const description = form.description.value.trim();
+
+                    if (!expenseType) {
+                        alert("Please select the type of entry (SALES or EXPENSES).");
+                        return false;
+                    }
+                    
+                    if (!supplierField || !supplierField.value.trim()) {
+                        alert("Please enter or select the Supplier/Sales Source.");
+                        return false;
+                    }
+                    
+                    if (expenseType === 'EXPENSES' && !description) {
+                        alert("Description is required for EXPENSES.");
+                        return false;
+                    }
+                    return true;
+                default:
+                    return true;
+            }
+        }
+
+        function showMessage(msg, type) {
+            const statusDiv = document.getElementById('statusMessage');
+            statusDiv.textContent = msg;
+            statusDiv.className = ''; 
+            statusDiv.classList.add(type);
+            statusDiv.style.display = 'block';
+            if (type !== 'loading') {
+                setTimeout(() => { statusDiv.style.display = 'none'; }, 6000);
+            }
+        }
+
+        async function submitData(event) {
+            event.preventDefault(); 
+            
+            if (!validateStep(2)) {
+                showStep(2);
+                return;
+            }
+
+            const form = document.getElementById('cashForm');
+            const data = new FormData(form);
+            const submitButton = document.getElementById('submit-btn');
+            
+            // Check for at least one non-zero amount
+            const lbpIn = parseFloat(data.get('lbpIn') || 0);
+            const lbpOut = parseFloat(data.get('lbpOut') || 0);
+            const usdIn = parseFloat(data.get('usdIn') || 0);
+            const usdOut = parseFloat(data.get('usdOut') || 0);
+            if (lbpIn === 0 && lbpOut === 0 && usdIn === 0 && usdOut === 0) {
+                alert("Please enter at least one value for LBP In/Out or USD In/Out.");
+                return;
+            }
+
+            if (GAS_URL.includes('YOUR_DEPLOYED_GOOGLE_APPS_SCRIPT_URL_HERE') || !GAS_URL.startsWith('https')) {
+                showMessage("ERROR: Please update the GAS_URL in the HTML file's code!", 'error');
+                return;
+            }
+
+            // Set loading state
+            submitButton.disabled = true;
+            submitButton.textContent = 'Submitting...';
+            showMessage('Submitting data to Google Sheet...', 'loading');
+
+            try {
+                const response = await fetch(GAS_URL, {
+                    method: 'POST',
+                    body: data, 
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.result === 'success') {
+                     showMessage(`✅ Entry ${data.get('ref')} logged for ${result.target}!`, 'success');
+                     
+                     saveNextRefNumber(data.get('ref'));
+                     
+                     form.reset(); 
+                     showStep(1); 
+                     
+                     updateRefField(); 
+                     updateSupplierField(); 
+                } else {
+                    const errorMsg = result.message || 'Unknown error occurred.';
+                    showMessage(`Error: ${errorMsg}. Please check your Sheet IDs in the Apps Script.`, 'error');
+                }
+
+            } catch (error) {
+                console.error('Submission error:', error);
+                showMessage(`Failed to send data: ${error.message}. Check network connection.`, 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = '💾 FINAL SUBMIT';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            showStep(1); 
+            document.getElementById('cashForm').addEventListener('submit', submitData);
+            document.getElementById('expenseType').addEventListener('change', updateSupplierField);
+            
+            updateRefField(); 
+            updateSupplierField();
+        });
+        
+    </script>
+</head>
+<body>
+    <header>
+        <div class="logo-image-container">
+            <img src="meetup logo 1 new.jpeg" alt="meetup COFFEE SHOP Logo" class="logo-image">
+        </div>
+    </header>
+
+    <div class="container">
+        
+        <div id="statusMessage"></div>
+
+        <form id="cashForm">
+            
+            <div id="step-1" class="step">
+                <h2>Step 1 of 4: Branch & Date</h2>
+                <p style="color: #666; font-size: 0.9em;">(Submission date will be used if left empty)</p>
+                <label for="branch">Select Branch:</label>
+                <select id="branch" name="branch" required>
+                    <option value="">-- Choose Branch --</option>
+                    <option value="Dekweneh">Dekweneh</option>
+                    <option value="Kaslik">Kaslik</option>
+                </select>
+                
+                <label for="submitDate">Date of Sale/Expense (Optional)</label>
+                <input type="date" id="submitDate" name="submitDate">
+                
+                <div class="button-group">
+                    <button type="button" class="next-btn" onclick="nextStep()">Next (1/4)</button>
+                </div>
+            </div>
+
+            <div id="step-2" class="step">
+                <h2>Step 2 of 4: Transaction Details</h2>
+                
+                <label for="ref">REF (Sequenced)</label>
+                <input type="text" id="ref" name="ref" readonly style="background-color: #f0f0f0; font-weight: bold;">
+
+                <label for="expenseType">Type of Entry</label>
+                <select id="expenseType" name="expenseType" required>
+                    <option value="">-- Choose Type --</option>
+                    <option value="SALES">SALES (Cash In)</option>
+                    <option value="EXPENSES">EXPENSES (Cash Out)</option>
+                </select>
+                
+                <label for="supplier">SUPPLIER / Sales Source</label>
+                <div id="supplierContainer">
+                    <input type="text" id="supplier" name="supplier" required placeholder="Select Type First">
+                </div>
+                
+                <label for="description" id="descriptionLabel">Description (Required for Expenses)</label>
+                <input type="text" id="description" name="description" placeholder="e.g., Coffee beans delivery, Salary payment">
+
+                <div class="button-group">
+                    <button type="button" class="back-btn" onclick="prevStep()">&leftarrow; Back</button>
+                    <button type="button" class="next-btn" onclick="nextStep()">Next (2/4)</button>
+                </div>
+            </div>
+
+            <div id="step-3" class="step">
+                <h2>Step 3 of 4: LBP Transaction Amounts</h2>
+                <p style="color: #666; font-size: 0.9em;">Enter the amount of LBP change. Enter 0 if not applicable.</p>
+
+                <label for="lbpIn">LBP In (Cash Received)</label>
+                <input type="number" id="lbpIn" name="lbpIn" step="any" value="0" min="0" required>
+                
+                <label for="lbpOut">LBP Out (Cash Paid)</label>
+                <input type="number" id="lbpOut" name="lbpOut" step="any" value="0" min="0" required>
+
+                <div class="button-group">
+                    <button type="button" class="back-btn" onclick="prevStep()">&leftarrow; Back</button>
+                    <button type="button" class="next-btn" onclick="nextStep()">Next (3/4)</button>
+                </div>
+            </div>
+
+            <div id="step-4" class="step">
+                <h2>Step 4 of 4: USD Amounts & Submit</h2>
+                <p style="color: #666; font-size: 0.9em;">Enter the amount of USD change. Enter 0 if not applicable.</p>
+                
+                <label for="usdIn">USD In (Cash Received)</label>
+                <input type="number" id="usdIn" name="usdIn" step="any" value="0" min="0" required>
+                
+                <label for="usdOut">USD Out (Cash Paid)</label>
+                <input type="number" id="usdOut" name="usdOut" step="any" value="0" min="0" required>
+                
+                <div class="button-group">
+                    <button type="button" class="back-btn" onclick="prevStep()">&leftarrow; Back</button>
+                    <button type="submit" id="submit-btn">💾 FINAL SUBMIT</button>
+                </div>
+            </div>
+            
+        </form>
+    </div>
+</body>
+</html>
